@@ -40,7 +40,10 @@ describe('server latency display without pre-forward wait disclosure', () => {
       it(`keeps 2020/18950ms unchanged without 97ms in ${locale} ${audience} table or tooltip`, () => {
         const wrapper = mount(UsageTable, {
           props: {
-            data: [serverLatency], columns: [{ key: 'latency', label: 'Latency' }],
+            data: [serverLatency], columns: [
+              { key: 'latency', label: 'Latency' },
+              { key: 'performance', label: 'Performance' },
+            ],
             enableTimingDetails: audience === 'admin', cacheRateAudience: audience,
             showAccountBilling: audience === 'admin',
           }, global: global(locale),
@@ -72,7 +75,8 @@ describe('server latency display without pre-forward wait disclosure', () => {
       expect(latency.querySelector('.row-start-1.col-start-3')?.textContent).toBe('-')
       expect(latency.querySelector('.row-start-2.col-start-3')?.textContent?.trim()).toBe('-')
       expect(latency.textContent).not.toContain('97ms')
-      expect(latency.textContent).toContain(locale === 'zh' ? '旧口径' : 'legacy')
+      expect(latency.textContent).toContain(locales[locale].usage.latencyFirstTokenShort)
+      expect(latency.textContent).toContain(locales[locale].usage.latencyDurationShort)
       const empty = mount(UsageTable, { props: { data: [], columns: [{ key: 'latency', label: 'Latency' }] }, global: global(locale) })
       wrappers.push(empty)
       expect(empty.text()).toContain(locales[locale].empty.noData)

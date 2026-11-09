@@ -240,45 +240,42 @@
           </button>
         </template>
 
-        <!-- 状态列：首字/总耗时/TPS 用左侧色条表示健康度。缓存率百分数为绿色，色条延伸到这一行，但不改变上面三段的健康色。 -->
+        <!-- Keep latency thresholds independent of the performance column. -->
         <template #cell-latency="{ row }">
-          <component :is="enableTimingDetails ? 'button' : 'div'" :type="enableTimingDetails ? 'button' : undefined" class="grid grid-cols-[0.25rem_max-content_max-content] items-baseline gap-x-2 gap-y-0.5 text-left text-xs" :class="enableTimingDetails ? 'hover:opacity-80 focus-visible:outline focus-visible:outline-primary-500' : ''" :aria-label="enableTimingDetails ? t('requestTiming.title') : undefined" @click="enableTimingDetails && (timingRecord = row)">
+          <component :is="enableTimingDetails ? 'button' : 'div'" :type="enableTimingDetails ? 'button' : undefined" data-testid="usage-latency" class="grid min-h-11 grid-cols-[0.25rem_max-content_max-content] items-baseline gap-x-2 gap-y-0.5 whitespace-nowrap text-left text-sm leading-5" :class="enableTimingDetails ? 'hover:opacity-80 focus-visible:outline focus-visible:outline-primary-500' : ''" :aria-label="enableTimingDetails ? t('requestTiming.title') : undefined" @click="enableTimingDetails && (timingRecord = row)">
             <span
               data-testid="latency-bar"
-              class="col-start-1 row-start-1 w-1 self-stretch rounded-full"
-              :class="[showCacheRate ? 'row-span-4' : 'row-span-3', latencyBarClasses(row)]"
-              :style="cacheRateBarStyle(row)"
+              class="col-start-1 row-start-1 row-span-2 w-1 self-stretch rounded-full"
+              :class="latencyBarClasses(row)"
               aria-hidden="true"
             ></span>
-            <span class="col-start-2 row-start-1 text-gray-400 dark:text-gray-500">{{ t(enableTimingDetails ? 'usage.latencyFirstTokenShort' : row.queue_timing?.status === 'measured' ? 'usage.latencyFirstToken' : 'requestTiming.legacyFirst') }}</span>
+            <span class="col-start-2 row-start-1 text-gray-400 dark:text-gray-500">{{ t('usage.latencyFirstTokenShort') }}</span>
             <span v-if="firstTokenQueueInclusive(row) != null" class="col-start-3 row-start-1 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[firstTokenSeverity(firstTokenQueueInclusive(row) ?? 0)]" :title="row.queue_timing?.status === 'measured' ? t('usage.latencyFirstTokenHint') : enableTimingDetails ? t('requestTiming.legacyFirst') : undefined">
               {{ formatDuration(firstTokenQueueInclusive(row)) }}
             </span>
             <span v-else class="col-start-3 row-start-1 text-gray-400 dark:text-gray-500" :title="enableTimingDetails ? t('requestTiming.legacyFirst') : undefined">-</span>
-            <span class="col-start-2 row-start-2 text-gray-400 dark:text-gray-500">{{ t(enableTimingDetails ? 'usage.latencyDurationShort' : row.queue_timing?.status === 'measured' ? 'usage.latencyDuration' : 'requestTiming.legacyTotal') }}</span>
+            <span class="col-start-2 row-start-2 text-gray-400 dark:text-gray-500">{{ t('usage.latencyDurationShort') }}</span>
             <span class="col-start-3 row-start-2 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[durationSeverity(durationQueueInclusive(row) ?? 0)]" :title="row.queue_timing?.status === 'measured' ? t('usage.latencyDurationHint') : enableTimingDetails ? t('requestTiming.legacyTotal') : undefined">
               {{ formatDuration(durationQueueInclusive(row)) }}
             </span>
-            <span class="col-start-2 row-start-3 text-gray-400 dark:text-gray-500">{{ t('usage.latencyTps') }}</span>
-            <span
-              v-if="formatUsageOutputTps(row)"
-              data-testid="latency-tps"
-              class="col-start-3 row-start-3 font-medium tabular-nums"
-              :class="LATENCY_TEXT_CLASSES[tpsSeverity(usageOutputTps(row) ?? 0)]"
-              :title="t('usage.latencyTpsHint')"
-            >{{ formatUsageOutputTps(row) }}</span>
-            <span v-else data-testid="latency-tps" class="col-start-3 row-start-3 text-gray-400 dark:text-gray-500">-</span>
-            <template v-if="showCacheRate">
-              <span class="col-start-2 row-start-4 text-gray-400 dark:text-gray-500">{{ t('usage.latencyCacheRate') }}</span>
-              <span
-                v-if="formatUsageCacheRate(row)"
-                data-testid="latency-cache-rate"
-                class="col-start-3 row-start-4 font-medium tabular-nums text-emerald-600 dark:text-emerald-400"
-                :title="cacheRateTitle(row)"
-              >{{ formatUsageCacheRate(row) }}</span>
-              <span v-else data-testid="latency-cache-rate" class="col-start-3 row-start-4 text-gray-400 dark:text-gray-500">-</span>
-            </template>
           </component>
+        </template>
+
+        <template #cell-performance="{ row }">
+          <div data-testid="usage-performance" class="grid min-h-11 content-start gap-y-0.5 whitespace-nowrap text-sm leading-5">
+            <div class="flex items-center gap-2 text-violet-500 dark:text-violet-400">
+              <Icon name="bolt" size="sm" class="shrink-0" aria-hidden="true" />
+              <span class="font-medium tabular-nums">{{ t('usage.performanceTps') }}:
+                <span data-testid="latency-tps" :class="formatUsageOutputTps(row) ? 'text-violet-500 dark:text-violet-400' : 'text-gray-400 dark:text-gray-500'" :title="formatUsageOutputTps(row) ? t('usage.latencyTpsHint') : undefined">{{ formatUsageOutputTps(row) ?? '-' }}</span>
+              </span>
+            </div>
+            <div v-if="showCacheRate" class="flex items-center gap-2 text-blue-500 dark:text-blue-400">
+              <Icon name="database" size="sm" class="shrink-0" aria-hidden="true" />
+              <span class="font-medium tabular-nums">{{ t('usage.performanceCache') }}:
+                <span data-testid="latency-cache-rate" :class="formatUsageCacheRate(row) ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'" :title="cacheRateTitle(row)">{{ formatUsageCacheRate(row) ?? '-' }}</span>
+              </span>
+            </div>
+          </div>
         </template>
 
         <template #cell-created_at="{ value }">
@@ -567,14 +564,11 @@ import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_FROM_CLASSES,
   LATENCY_BAR_TO_CLASSES,
-  LATENCY_BAR_VIA_CLASSES,
   LATENCY_TEXT_CLASSES,
   durationSeverity,
   firstTokenSeverity,
-  tpsSeverity,
-  type LatencySeverity,
 } from '@/utils/latencyHealth'
-import { formatUsageOutputTps, usageOutputTps } from '@/utils/usageTps'
+import { formatUsageOutputTps } from '@/utils/usageTps'
 import { formatUsageCacheRate, showUsageCacheRate, usageCacheRateParts } from '@/utils/usageCacheRate'
 import {
   BILLING_MODE_TOKEN,
@@ -795,13 +789,6 @@ const cacheRateTitle = (row: AdminUsageLog): string | undefined => {
   })
 }
 
-const LATENCY_BAR_COLORS: Record<LatencySeverity, string> = {
-  good: '#10b981',
-  warn: '#fbbf24',
-  slow: '#f97316',
-  critical: '#ef4444',
-}
-
 // Persisted boundary observations account for protocol-specific legacy overlap.
 // Historical rows retain their legacy values and are not claimed as measured.
 const firstTokenQueueInclusive = (row: AdminUsageLog): number | null =>
@@ -811,37 +798,21 @@ const durationQueueInclusive = (row: AdminUsageLog): number | null =>
 
 const latencySeverities = (row: AdminUsageLog) => {
   const duration = durationSeverity(durationQueueInclusive(row) ?? 0)
-  const tps = usageOutputTps(row)
   const firstToken = firstTokenQueueInclusive(row)
   return {
     first: firstToken != null ? firstTokenSeverity(firstToken) : duration,
     duration,
-    tps: tps != null ? tpsSeverity(tps) : duration,
   }
 }
 
-// 延迟色条三段依次对应首字/总耗时/TPS（30%/50%/70% 分别落在三行内）；无首字或无 TPS 的段沿用总耗时档。
+// The two stops retain the original first-token and duration severity colors.
 const latencyBarClasses = (row: AdminUsageLog): string[] => {
   const severity = latencySeverities(row)
   return [
-    'bg-gradient-to-b from-30% via-50% to-70%',
+    'bg-gradient-to-b from-40% to-60%',
     LATENCY_BAR_FROM_CLASSES[severity.first],
-    LATENCY_BAR_VIA_CLASSES[severity.duration],
-    LATENCY_BAR_TO_CLASSES[severity.tps],
+    LATENCY_BAR_TO_CLASSES[severity.duration],
   ]
-}
-
-// 有缓存率时色条盖住四行：前三行仍用三行停点的相对位置，第四行固定绿色，不把缓存率算进健康度。
-const cacheRateBarStyle = (row: AdminUsageLog): Record<string, string> | undefined => {
-  if (!showCacheRate.value) return undefined
-  const severity = latencySeverities(row)
-  const first = LATENCY_BAR_COLORS[severity.first]
-  const duration = LATENCY_BAR_COLORS[severity.duration]
-  const tps = LATENCY_BAR_COLORS[severity.tps]
-  const cache = LATENCY_BAR_COLORS.good
-  return {
-    backgroundImage: `linear-gradient(to bottom, ${first} 22.5%, ${duration} 37.5%, ${tps} 52.5%, ${tps} 75%, ${cache} 75%, ${cache} 100%)`,
-  }
 }
 
 // Leave a small bridge between the trigger and the scrollable desktop popover.

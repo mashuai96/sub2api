@@ -83,6 +83,8 @@ const localizedMessages: Record<'en' | 'zh', Record<string, string>> = {
 }
 
 const messages: Record<string, string> = {
+  'usage.performanceTps': 'TPS',
+  'usage.performanceCache': 'Cache',
   'usage.latencyTps': 'Avg TPS',
   'usage.latencyCacheRate': 'Cache rate',
   'usage.latencyCacheRateHint': 'cache rate hint',
@@ -163,6 +165,7 @@ const DataTableStub = {
         <slot name="cell-billing_mode" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-latency" :row="row" />
+        <slot name="cell-performance" :row="row" />
         <slot name="cell-cost" :row="row" />
         <slot name="cell-request_id" :row="row" />
         <slot name="cell-upstream_request_id" :row="row" />
@@ -200,7 +203,7 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
-  it('shows output TPS in the latency cell using total duration', () => {
+  it('shows output TPS in its performance cell using total duration', () => {
     const row = { ...baseImageRow, image_count: 0, billing_mode: 'token', output_tokens: 1000, duration_ms: 20_000, first_token_ms: 10_000 }
     const wrapper = mount(UsageTable, {
       props: {
@@ -211,7 +214,7 @@ describe('admin UsageTable tooltip', () => {
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
     expect(wrapper.findAll('[data-testid="latency-tps"]').map(cell => cell.text())).toEqual(['50.0 t/s', '-', '-'])
-    expect(wrapper.text()).toContain('Avg TPS')
+    expect(wrapper.text()).toContain('TPS:')
   })
 
   it('keeps queue-inclusive first token without disclosing the queue portion', () => {
@@ -1055,6 +1058,7 @@ const DataTableStubWithLatency = {
     <div>
       <div v-for="row in data" :key="row.request_id" :data-row="row.request_id">
         <slot name="cell-latency" :row="row" />
+        <slot name="cell-performance" :row="row" />
       </div>
     </div>
   `,
@@ -1103,14 +1107,14 @@ describe('admin UsageTable latency TPS', () => {
       { request_id: 'req-tps-stream', output_tokens: 872, duration_ms: 31_260, first_token_ms: 2_910 },
     ])
 
-    expect(wrapper.text()).toContain('Avg TPS')
+    expect(wrapper.text()).toContain('TPS:')
     const cell = tpsCell(wrapper, 'req-tps-stream')
     expect(cell.text()).toBe('27.9 t/s')
     expect(cell.attributes('title')).toBe('usage.latencyTpsHint')
-    expect(cell.classes()).toContain('text-emerald-600')
+    expect(cell.classes()).toContain('text-violet-500')
   })
 
-  it('colors the TPS text and the bottom bar segment red below 10 t/s and yellow below 20 t/s', () => {
+  it('keeps TPS purple independently of the first-token and duration health colors', () => {
     const wrapper = mountLatency([
       // first token 12s (warn), total 17s (good), 1.5 t/s (critical)
       { request_id: 'req-tps-slow', output_tokens: 25, duration_ms: 17_000, first_token_ms: 12_000 },
@@ -1119,19 +1123,19 @@ describe('admin UsageTable latency TPS', () => {
     ])
 
     expect(tpsCell(wrapper, 'req-tps-slow').text()).toBe('1.5 t/s')
-    expect(tpsCell(wrapper, 'req-tps-slow').classes()).toContain('text-red-600')
+    expect(tpsCell(wrapper, 'req-tps-slow').classes()).toContain('text-violet-500')
     expect(barClasses(wrapper, 'req-tps-slow')).toEqual(
-      expect.arrayContaining(['from-amber-400', 'via-emerald-500', 'to-red-500']),
+      expect.arrayContaining(['from-amber-400', 'to-emerald-500']),
     )
 
     expect(tpsCell(wrapper, 'req-tps-mid').text()).toBe('12.5 t/s')
-    expect(tpsCell(wrapper, 'req-tps-mid').classes()).toContain('text-amber-600')
+    expect(tpsCell(wrapper, 'req-tps-mid').classes()).toContain('text-violet-500')
     expect(barClasses(wrapper, 'req-tps-mid')).toEqual(
-      expect.arrayContaining(['from-emerald-500', 'via-emerald-500', 'to-amber-400']),
+      expect.arrayContaining(['from-emerald-500', 'to-emerald-500']),
     )
   })
 
-  it('lets bar segments without first-token or TPS data follow the total-duration color', () => {
+  it('lets a missing first-token bar segment follow the total-duration color', () => {
     const wrapper = mountLatency([
       // no first token, total 70s (warn), 1400 tokens / 70s = 20 t/s (good)
       { request_id: 'req-bar-sync', output_tokens: 1_400, duration_ms: 70_000, first_token_ms: null },
@@ -1140,10 +1144,10 @@ describe('admin UsageTable latency TPS', () => {
     ])
 
     expect(barClasses(wrapper, 'req-bar-sync')).toEqual(
-      expect.arrayContaining(['from-amber-400', 'via-amber-400', 'to-emerald-500']),
+      expect.arrayContaining(['from-amber-400', 'to-amber-400']),
     )
     expect(barClasses(wrapper, 'req-bar-image')).toEqual(
-      expect.arrayContaining(['from-emerald-500', 'via-emerald-500', 'to-emerald-500']),
+      expect.arrayContaining(['from-emerald-500', 'to-emerald-500']),
     )
   })
 
@@ -1168,8 +1172,8 @@ describe('admin UsageTable latency TPS', () => {
     for (const requestId of ['req-tps-terminal', 'req-tps-same-ms']) {
       expect(tpsCell(wrapper, requestId).text()).toBe('10.8 t/s')
       expect(tpsCell(wrapper, requestId).attributes('title')).toBe('usage.latencyTpsHint')
-      expect(tpsCell(wrapper, requestId).classes()).toContain('text-amber-600')
-      expect(barClasses(wrapper, requestId)).toContain('to-amber-400')
+      expect(tpsCell(wrapper, requestId).classes()).toContain('text-violet-500')
+      expect(barClasses(wrapper, requestId)).toContain('to-emerald-500')
     }
   })
 
@@ -1185,7 +1189,7 @@ describe('admin UsageTable latency TPS', () => {
     expect(tpsCell(wrapper, 'req-tps-interrupted').text()).toBe('-')
     expect(tpsCell(wrapper, 'req-tps-interrupted').classes()).not.toContain('text-red-600')
     expect(barClasses(wrapper, 'req-tps-interrupted')).toEqual(
-      expect.arrayContaining(['from-emerald-500', 'via-emerald-500', 'to-emerald-500']),
+      expect.arrayContaining(['from-emerald-500', 'to-emerald-500']),
     )
     expect(tpsCell(wrapper, 'req-tps-image').text()).toBe('-')
   })
@@ -1198,27 +1202,28 @@ describe('admin UsageTable latency TPS', () => {
     ])
 
     const hit = wrapper.find('[data-row="req-cache-hit"] [data-testid="latency-cache-rate"]')
-    expect(wrapper.text()).toContain('Cache rate')
+    expect(wrapper.text()).toContain('Cache:')
     expect(hit.text()).toBe('98.6%')
     expect(hit.attributes('title')).toBe('cache rate hint')
-    expect(hit.classes()).toContain('text-emerald-600')
-    expect(wrapper.find('[data-row="req-cache-miss"] [data-testid="latency-cache-rate"]').classes()).toContain('text-emerald-600')
+    expect(hit.classes()).toContain('text-blue-500')
+    expect(wrapper.find('[data-row="req-cache-miss"] [data-testid="latency-cache-rate"]').classes()).toContain('text-blue-500')
     expect(wrapper.find('[data-row="req-cache-miss"] [data-testid="latency-cache-rate"]').text()).toBe('0%')
     expect(wrapper.find('[data-row="req-cache-empty"] [data-testid="latency-cache-rate"]').text()).toBe('-')
     expect(wrapper.find('[data-row="req-cache-empty"] [data-testid="latency-cache-rate"]').attributes('title')).toBeUndefined()
     const bar = wrapper.find('[data-row="req-cache-hit"] [data-testid="latency-bar"]')
-    expect(bar.classes()).toEqual(expect.arrayContaining(['row-span-4', 'from-emerald-500', 'via-emerald-500', 'to-emerald-500']))
-    expect(bar.attributes('style')).toContain('linear-gradient(to bottom, #10b981 22.5%, #10b981 37.5%, #10b981 52.5%, #10b981 75%, #10b981 75%, #10b981 100%)')
+    expect(bar.classes()).toEqual(expect.arrayContaining(['row-span-2', 'from-emerald-500', 'to-emerald-500']))
+    expect(bar.attributes('style')).toBeUndefined()
   })
 
-  it('keeps the latency bar segments beside first token, duration, and TPS when cache rate is shown', () => {
+  it('keeps only two latency bar segments when cache rate is shown in the separate performance column', () => {
     const wrapper = mountLatency([
       { request_id: 'req-cache-bar', input_tokens: 100, cache_read_tokens: 0, cache_creation_tokens: 0, output_tokens: 25, duration_ms: 17_000, first_token_ms: 12_000 },
     ])
 
     const bar = wrapper.find('[data-row="req-cache-bar"] [data-testid="latency-bar"]')
-    expect(bar.classes()).toContain('row-span-4')
-    expect(bar.attributes('style')).toContain('#fbbf24 22.5%, #10b981 37.5%, #ef4444 52.5%, #ef4444 75%, #10b981 75%')
+    expect(bar.classes()).toEqual(expect.arrayContaining(['row-span-2', 'from-amber-400', 'to-emerald-500']))
+    expect(wrapper.get('[data-testid="usage-latency"]').find('[data-testid="latency-tps"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="usage-performance"]').find('[data-testid="latency-tps"]').exists()).toBe(true)
   })
 
   const cacheHitRow = { request_id: 'req-cache-visibility', input_tokens: 4_057, cache_read_tokens: 278_272, cache_creation_tokens: 4, output_tokens: 101, duration_ms: 345, first_token_ms: 12 }
@@ -1227,7 +1232,7 @@ describe('admin UsageTable latency TPS', () => {
     appStoreMocks.cachedPublicSettings = { usage_show_cache_rate: false, usage_show_cache_rate_to_users: true }
     const wrapper = mountLatency([cacheHitRow])
     expect(wrapper.find('[data-testid="latency-cache-rate"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('Cache rate')
+    expect(wrapper.text()).not.toContain('Cache:')
     appStoreMocks.cachedPublicSettings = undefined
   })
 
@@ -1243,8 +1248,8 @@ describe('admin UsageTable latency TPS', () => {
   })
 })
 
-for (const [language, first, total] of [['en', 'Server TTFT', 'Server total'], ['zh', '服务端首字', '服务端总耗时']] as const) {
-  it(`keeps the original four latency rows and omits typed-content timing in ${language}`, () => {
+for (const [language, first, total] of [['en', 'First token', 'Total'], ['zh', '首字', '总耗时']] as const) {
+  it(`keeps two latency rows and separate performance while omitting typed-content timing in ${language}`, () => {
     locale = language
     const dashboardMessages = language === 'en' ? enDashboard : zhDashboard
     appStoreMocks.cachedPublicSettings = { usage_show_cache_rate: true }
@@ -1259,10 +1264,8 @@ for (const [language, first, total] of [['en', 'Server TTFT', 'Server total'], [
     expect(wrapper.text()).toContain('32.00s')
     expect(wrapper.text()).toContain('50.00s')
     expect(wrapper.findAll('[class*="col-start-2"][class*="row-start-"]').map(node => node.text())).toEqual([
-      dashboardMessages.usage.latencyFirstToken,
-      dashboardMessages.usage.latencyDuration,
-      dashboardMessages.usage.latencyTps,
-      dashboardMessages.usage.latencyCacheRate,
+      dashboardMessages.usage.latencyFirstTokenShort,
+      dashboardMessages.usage.latencyDurationShort,
     ])
     expect(wrapper.find('[data-testid="typed-content-timing"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="latency-e2e-uncollected"]').exists()).toBe(false)

@@ -573,7 +573,8 @@ describe('admin UsageView request ID column visibility', () => {
     const usageTable = wrapper.findComponent(UsageTableStub)
     const usageColumnKeys = usageTable.props('columns').map((column: { key: string }) => column.key)
     const latencyColumnIndex = usageColumnKeys.indexOf('latency')
-    expect(usageColumnKeys[latencyColumnIndex + 1]).toBe('created_at')
+    expect(usageColumnKeys[latencyColumnIndex + 1]).toBe('performance')
+    expect(usageColumnKeys[latencyColumnIndex + 2]).toBe('created_at')
     expect(usageColumnKeys).not.toEqual(expect.arrayContaining([
       'content_reasoning_first_ms', 'content_visible_text_first_ms', 'content_response_byte_first_ms',
     ]))
