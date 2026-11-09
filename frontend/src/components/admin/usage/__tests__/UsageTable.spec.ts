@@ -17,12 +17,7 @@ vi.mock('@/api/admin/usageTiming', () => ({ getUsageTiming: timingAPIMocks.get }
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
-import NewFeatureBadge from '@/components/common/NewFeatureBadge.vue'
-import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
-import { useNewFeatureNoticeStore } from '@/stores/newFeatureNotices'
-import { observerUsageContext } from '../observerUsageContext'
 
 import en from '@/i18n/locales/en/admin/resources'
 import zh from '@/i18n/locales/zh/admin/resources'
@@ -217,7 +212,7 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.text()).toContain('TPS:')
   })
 
-  it('keeps queue-inclusive first token without disclosing the queue portion', () => {
+  it('uses legacy first token and total instead of queue-inclusive measurements', () => {
     const row = { ...baseImageRow, image_count: 0, billing_mode: 'token', output_tokens: 100, duration_ms: 20_000, first_token_ms: 2_000, queue_wait_ms: 30_000,
       queue_timing: { status: 'measured', source: 'ws_frame_ctx_pool', scope: 'pre_final_forward', queue_clamped: false,
         server_first_token_ms: 32_000, server_duration_ms: 50_000, forward_first_token_ms: 2_000, forward_duration_ms: 20_000 } }
@@ -225,8 +220,8 @@ describe('admin UsageTable tooltip', () => {
       props: { data: [row], loading: false, columns: [{ key: 'latency', label: 'Latency' }] },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
-    expect(wrapper.text()).toContain('32.00s')
-    expect(wrapper.text()).toContain('50.00s')
+    expect(wrapper.text()).toContain('2.00s')
+    expect(wrapper.text()).toContain('20.00s')
     expect(wrapper.text()).not.toContain('30.00s')
     expect(wrapper.find('[data-testid="latency-e2e-uncollected"]').exists()).toBe(false)
   })
@@ -1261,8 +1256,8 @@ for (const [language, first, total] of [['en', 'First token', 'Total'], ['zh', '
     })
     expect(wrapper.text()).toContain(first)
     expect(wrapper.text()).toContain(total)
-    expect(wrapper.text()).toContain('32.00s')
-    expect(wrapper.text()).toContain('50.00s')
+    expect(wrapper.text()).toContain('2.00s')
+    expect(wrapper.text()).toContain('20.00s')
     expect(wrapper.findAll('[class*="col-start-2"][class*="row-start-"]').map(node => node.text())).toEqual([
       dashboardMessages.usage.latencyFirstTokenShort,
       dashboardMessages.usage.latencyDurationShort,
@@ -1275,7 +1270,7 @@ for (const [language, first, total] of [['en', 'First token', 'Total'], ['zh', '
   })
 }
 
-it('keeps queue-inclusive admin latency compact and explains server boundaries on hover', () => {
+it('keeps legacy admin latency compact and explains the original timer on hover', () => {
   const row = {
     ...baseImageRow,
     image_count: 0,
@@ -1302,16 +1297,16 @@ it('keeps queue-inclusive admin latency compact and explains server boundaries o
 
   expect(wrapper.text()).toContain('First token')
   expect(wrapper.text()).toContain('Total')
-  expect(wrapper.text()).toContain('32.00s')
-  expect(wrapper.text()).toContain('50.00s')
+  expect(wrapper.text()).toContain('2.00s')
+  expect(wrapper.text()).toContain('20.00s')
   expect(wrapper.text()).not.toContain('incl. pre-forward wait')
   expect(wrapper.text()).not.toContain('30.00s')
-  const firstValue = wrapper.findAll('span').find((span) => span.text() === '32.00s')
-  const totalValue = wrapper.findAll('span').find((span) => span.text() === '50.00s')
+  const firstValue = wrapper.findAll('span').find((span) => span.text() === '2.00s')
+  const totalValue = wrapper.findAll('span').find((span) => span.text() === '20.00s')
   expect(firstValue?.attributes('title')).not.toContain('30.00s')
-  expect(firstValue?.attributes('title')).toContain('sampled server boundaries')
+  expect(firstValue?.attributes('title')).toContain('recorded')
   expect(totalValue?.attributes('title')).not.toContain('30.00s')
-  expect(totalValue?.attributes('title')).toContain('sampled server boundaries')
+  expect(totalValue?.attributes('title')).toContain('recorded')
   wrapper.unmount()
 })
 
@@ -1381,47 +1376,20 @@ for (const language of ['en', 'zh'] as const) {
   })
 }
 
-it('shares the timing notice between the usage table and details and preserves the dismissal after reload', async () => {
-  locale = 'en'
-  localStorage.clear()
+it('opens legacy timing details without the newer SSE-event notice', async () => {
   timingAPIMocks.get.mockResolvedValue({ traces: [], retention_days: 30 })
-  let pinia = createPinia()
-  setActivePinia(pinia)
-  const oldNotice = NEW_FEATURE_NOTICES.protocolFeatureSwitches
-  useNewFeatureNoticeStore().dismiss(41, oldNotice)
-  const renderTable = (observer = false) => mount(UsageTable, {
-    props: { data: [{ ...baseImageRow, id: 41, stream: true }], columns: [{ key: 'latency', label: 'Latency' }], enableTimingDetails: true, noticeUserId: 41 },
-    global: {
-      plugins: [pinia],
-      provide: { [observerUsageContext as symbol]: observer },
-      stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true, BaseDialog: { template: '<section><slot /></section>' } },
-    },
+  const wrapper = mount(UsageTable, {
+    props: { data: [{ ...baseImageRow, stream: true, first_token_ms: 876 }],
+      columns: [{ key: 'latency', label: 'Latency' }], enableTimingDetails: true, noticeUserId: 41 },
+    global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true,
+      BaseDialog: { template: '<section><slot /></section>' } } },
   })
-  const table = renderTable()
   try {
-    expect(table.findAll('[data-testid="new-feature-badge"]')).toHaveLength(1)
-    await table.get('button[aria-label="requestTiming.title"]').trigger('click')
+    expect(wrapper.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="requestTiming.title"]').trigger('click')
     await flushPromises()
-    expect(table.findAll('[data-testid="new-feature-badge"]')).toHaveLength(2)
-    expect(table.findAllComponents(NewFeatureBadge).every(b => b.props('noticeId') === NEW_FEATURE_NOTICES.streamFirstEventTiming)).toBe(true)
-    await table.get('[data-testid="final-content-timing"] [data-testid="new-feature-badge"]').trigger('click')
-    expect(table.findAll('[data-testid="new-feature-badge"]')).toHaveLength(0)
-  } finally {
-    table.unmount()
-  }
-  pinia = createPinia()
-  setActivePinia(pinia)
-  const refreshed = renderTable()
-  const old = mount(NewFeatureBadge, { props: { noticeId: oldNotice, userId: 41 }, global: { plugins: [pinia] } })
-  const next = mount(NewFeatureBadge, { props: { noticeId: 'fixture-next-stream-feature-C', userId: 41 }, global: { plugins: [pinia] } })
-  const observer = renderTable(true)
-  try {
-    expect(refreshed.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
-    expect(old.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
-    expect(next.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
-    expect(observer.findComponent(NewFeatureBadge).exists()).toBe(false)
-  } finally {
-    for (const wrapper of [refreshed, old, next, observer]) wrapper.unmount()
-    localStorage.clear()
-  }
+    expect(wrapper.find('[data-testid="final-content-timing"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('876ms')
+    expect(timingAPIMocks.get).toHaveBeenCalled()
+  } finally { wrapper.unmount() }
 })

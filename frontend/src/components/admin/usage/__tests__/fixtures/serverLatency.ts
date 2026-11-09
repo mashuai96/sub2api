@@ -1,6 +1,6 @@
 import type { AdminUsageLog } from '@/types'
 
-// Synthetic sampled boundaries: the displayed server totals must never lose 97ms.
+// Synthetic legacy timers and separate queue-inclusive observations.
 export const serverLatency = {
   id: 97,
   request_id: 'synthetic-server-latency',

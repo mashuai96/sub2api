@@ -2,7 +2,7 @@
 
 ## Release Identity
 
-- Application version: `2.20.1-riyue-ms.1`.
+- Application version: `2.20.1-riyue-ms.2`.
 - Upstream: `ranxi2001/sub2api v2.20.1` at
   `19555361324e8df0f4723cc564246a43100490a7`.
 - Timing reference: `v2.19.4` at
@@ -15,10 +15,16 @@
 Both `/usage` and `/admin/usage` share `UsageTable.vue`. The latency column
 contains first token and total duration; the performance column contains TPS
 and cache percentage. Filters, exports, pagination, column preferences, cache
-visibility and administrator-only timing details retain their existing controls.
+visibility and administrator-only detailed traces retain their existing controls.
+User pages open the same summary layout without fetching privileged traces.
 
 The v2.19.4 color thresholds remain TTFT 10/30/60 seconds and duration
-60/180/300 seconds. TPS/cache formulas and queue-inclusive display are unchanged.
+60/180/300 seconds. TPS/cache formulas are unchanged. The table selects persisted
+`first_token_ms` and `duration_ms`, not `queue_timing` or `content_timing`.
+For the screenshot regression, 876ms and 8.18s remain 876ms and 8.18s even when
+queue-inclusive observations are 2.94s and 10.24s. Missing timers stay missing.
+The details dialog restores the v2.19.4 nine-summary layout and separately
+labels queue-inclusive measurements. No production history is rewritten.
 
 HTTP native and passthrough Responses usage timers restore the v2.19.4 semantic
 predicate, or the existing visible-output predicate when selected. This retains
@@ -55,7 +61,13 @@ emits `billing.service_tier_resolved` with requested, observed and billed tiers,
 | Shared layout, colors, permissions and missing metrics | `frontend/src/components/admin/usage/__tests__/`, `frontend/src/views/admin/__tests__/UsageView.spec.ts` |
 | Built user/admin pages at four widths | `scripts/verify-usage-ui.cjs` |
 
-## Release Verification
+## ms.2 Verification
+
+The ms.2 regression suite includes both audience tables, the 876ms screenshot
+case, missing values, user-only summary access, and the legacy details layout.
+Release-specific raw results are kept in the private operations workspace.
+
+## Original ms.1 Verification
 
 The original release candidate was checked on 2026-11-09:
 

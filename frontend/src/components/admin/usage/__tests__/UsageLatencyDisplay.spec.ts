@@ -25,19 +25,19 @@ function global(locale: 'en' | 'zh') {
   return { plugins: [createI18n({ legacy: false, locale, messages: locales })] }
 }
 
-describe('server latency display without pre-forward wait disclosure', () => {
+describe('legacy usage latency without queue or content-timing substitution', () => {
   it('is shared by both admin and user usage pages', () => {
     for (const page of [adminPage, userPage]) {
       expect(page).toContain("import UsageTable from '@/components/admin/usage/UsageTable.vue'")
       expect(page).toContain('<UsageTable')
     }
     expect(adminPage).toContain('enable-timing-details')
-    expect(userPage).not.toContain('enable-timing-details')
+    expect(userPage).toContain('enable-timing-details')
   })
 
   for (const locale of ['en', 'zh'] as const) {
     for (const audience of ['admin', 'user'] as const) {
-      it(`keeps 2020/18950ms unchanged without 97ms in ${locale} ${audience} table or tooltip`, () => {
+      it(`keeps 1923/18853ms legacy values instead of 2020/18950ms in ${locale} ${audience} table or tooltip`, () => {
         const wrapper = mount(UsageTable, {
           props: {
             data: [serverLatency], columns: [
@@ -50,14 +50,14 @@ describe('server latency display without pre-forward wait disclosure', () => {
         })
         wrappers.push(wrapper)
         const latency = wrapper.get('[data-testid="latency-bar"]').element.parentElement!
-        expect(latency.textContent).toContain('2.02s')
-        expect(latency.textContent).toContain('18.95s')
+        expect(latency.textContent).toContain('1.92s')
+        expect(latency.textContent).toContain('18.85s')
         expect(latency.textContent).not.toMatch(/97ms|pre-forward|转发前|queuePortion/)
         const titles = Array.from(latency.querySelectorAll('[title]')).map(node => node.getAttribute('title')).join(' ')
-        expect(titles).not.toMatch(/97ms|0\.097|1\.92s|18\.85s|\{queue\}/)
+        expect(titles).not.toMatch(/97ms|0\.097|2\.02s|18\.95s|\{queue\}/)
         expect(titles).toContain(locale === 'zh' ? '服务端' : 'Server')
-        expect(latency.querySelector('.row-start-1.col-start-3')?.textContent?.trim()).toBe('2.02s')
-        expect(latency.querySelector('.row-start-2.col-start-3')?.textContent?.trim()).toBe('18.95s')
+        expect(latency.querySelector('.row-start-1.col-start-3')?.textContent?.trim()).toBe('1.92s')
+        expect(latency.querySelector('.row-start-2.col-start-3')?.textContent?.trim()).toBe('18.85s')
         expect(wrapper.get('th').text()).toBe('Latency')
         expect(wrapper.get('[data-testid="latency-tps"]').text()).toBe('10.6 t/s')
       })
@@ -82,7 +82,7 @@ describe('server latency display without pre-forward wait disclosure', () => {
       expect(empty.text()).toContain(locales[locale].empty.noData)
     })
 
-    it(`uses concise server titles and no wait summary in the ${locale} timing dialog`, async () => {
+    it(`restores the v2.19.4 wait summary and measured/legacy distinction in the ${locale} timing dialog`, async () => {
       const wrapper = mount(UsageTimingDialog, {
         props: { record: serverLatency }, attachTo: document.body, global: global(locale),
       })
@@ -90,14 +90,48 @@ describe('server latency display without pre-forward wait disclosure', () => {
       await flushPromises()
       const body = document.body.querySelector('.modal-body')!
       const labels = Array.from(body.querySelectorAll('.rounded-xl.border.p-4 > .text-sm')).map(node => node.textContent)
-      expect(labels).toContain(locale === 'zh' ? '服务端首字' : 'Server TTFT')
-      expect(labels).toContain(locale === 'zh' ? '服务端总耗时' : 'Server total')
-      expect(labels.join(' ')).not.toMatch(/pre-forward|转发前/)
+      expect(labels).toContain(locales[locale].requestTiming.serverFirst)
+      expect(labels).toContain(locales[locale].requestTiming.serverTotal)
+      expect(labels).toContain(locales[locale].requestTiming.queueWait)
+      expect(body.textContent).toContain('1.92s')
+      expect(body.textContent).toContain('18.85s')
+      expect(body.textContent).toContain('97ms')
       expect(body.textContent).toContain('2.02s')
       expect(body.textContent).toContain('18.95s')
-      expect(body.textContent).not.toContain('97ms')
+      expect(body.querySelector('[data-testid="final-content-timing"]')).toBeNull()
       expect(body.textContent).toContain(locales[locale].requestTiming.empty)
       expect(body.textContent).toContain(locales[locale].requestTiming.missing)
     })
   }
+})
+
+for (const audience of ['admin', 'user'] as const) {
+  it(`shows the screenshot's 876ms / 8.18s in the ${audience} table, not 2.94s / 10.24s`, () => {
+    const record = { ...serverLatency, first_token_ms: 876, duration_ms: 8180,
+      queue_timing: { ...serverLatency.queue_timing!, server_first_token_ms: 2940, server_duration_ms: 10240 },
+      content_timing: { ...serverLatency.content_timing!, sse_event_first_ms: 2940, semantic_first_ms: 10060 },
+    }
+    const wrapper = mount(UsageTable, { props: {
+      data: [record], columns: [{ key: 'latency', label: 'Latency' }],
+      enableTimingDetails: true, cacheRateAudience: audience,
+    }, global: global('zh') })
+    wrappers.push(wrapper)
+    const latency = wrapper.get('[data-testid="usage-latency"]')
+    expect(latency.text()).toContain('876ms')
+    expect(latency.text()).toContain('8.18s')
+    expect(latency.text()).not.toMatch(/2\.94s|10\.24s|10\.06s/)
+    expect(latency.get('.row-start-1.col-start-3').classes()).toContain('text-emerald-600')
+    expect(latency.get('.row-start-2.col-start-3').classes()).toContain('text-emerald-600')
+  })
+}
+
+it('does not replace a missing legacy timer with measured queue or content timing', () => {
+  const wrapper = mount(UsageTable, { props: {
+    data: [{ ...serverLatency, first_token_ms: null, duration_ms: null }],
+    columns: [{ key: 'latency', label: 'Latency' }],
+  }, global: global('en') })
+  wrappers.push(wrapper)
+  const latency = wrapper.get('[data-testid="usage-latency"]')
+  expect(latency.get('.row-start-1.col-start-3').text()).toBe('-')
+  expect(latency.get('.row-start-2.col-start-3').text()).toBe('-')
 })

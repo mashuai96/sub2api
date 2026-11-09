@@ -1,6 +1,6 @@
 # sub_ms 构建与验证
 
-适用版本：`2.20.1-riyue-ms.1`。本指南只构建和验证源码，不执行生产部署。
+适用版本：`2.20.1-riyue-ms.2`。本指南只构建和验证源码，不执行生产部署。
 
 ## 工具链
 
@@ -22,13 +22,13 @@ Go、Node 基础镜像标签仍可能更新；锁文件和固定运行时 digest
 
 ```bash
 docker build --platform linux/amd64 -f Dockerfile.sub-ms \
-  --build-arg VERSION=2.20.1-riyue-ms.1 \
+  --build-arg VERSION=2.20.1-riyue-ms.2 \
   --build-arg COMMIT="$(git rev-parse HEAD)" \
   --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  -t sub2api:2.20.1-riyue-ms.1 .
+  -t sub2api:2.20.1-riyue-ms.2 .
 
 docker run --rm --network none \
-  --entrypoint /app/sub2api sub2api:2.20.1-riyue-ms.1 -version
+  --entrypoint /app/sub2api sub2api:2.20.1-riyue-ms.2 -version
 ```
 
 构建过程包含：锁定依赖安装、前端国际化检查与类型检查、前端打包、后端嵌入
@@ -40,7 +40,7 @@ docker run --rm --network none \
 
 PowerShell 可先赋值 `$commit = git rev-parse HEAD` 与
 `$date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')`，
-再将上面三个构建参数写为 `--build-arg VERSION=2.20.1-riyue-ms.1
+再将上面三个构建参数写为 `--build-arg VERSION=2.20.1-riyue-ms.2
 --build-arg COMMIT=$commit --build-arg DATE=$date`，命令放在一行执行。
 
 ## 本地前端验证
@@ -112,5 +112,5 @@ Linux CI 如缺少浏览器系统库，可使用 `install --with-deps chromium`�
 继承的上游工作流继续保留；`release.yml` 的发布入口限制在原上游仓库运行。
 这里不自动推送容器镜像、发送上游通知或连接生产服务器。
 
-源码版本使用带注释的 `v2.20.1-riyue-ms.1` 标签。后续版本需同步
+源码版本使用带注释的 `v2.20.1-riyue-ms.2` 标签。后续版本需同步
 `CHANGELOG.md`、默认构建版本和验证说明；不能只改标签而不核验实际源码。

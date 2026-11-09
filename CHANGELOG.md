@@ -3,6 +3,15 @@
 记录 `mashuai96/sub2api` 的定制变更。上游完整功能变更请参考
 [ranxi2001/sub2api Releases](https://github.com/ranxi2001/sub2api/releases)。
 
+## [2.20.1-riyue-ms.2] - 2026-11-09
+
+### Fixed
+
+- 用量列表首字与总耗时改取 `first_token_ms` / `duration_ms`，不再被排队口径或首事件覆盖；876ms 截图用例覆盖用户端和管理端。
+- 请求耗时详情恢复 v2.19.4 九项摘要和分段布局，区分旧口径与含转发前等待的观测值。
+- 用户端开放仅基于自身用量记录的摘要弹框，不请求管理员或观察员诊断接口。
+- 保留首字/总耗时颜色阈值、TPS/缓存率公式与现有 API Key Fast 计费修复。
+
 ## [2.20.1-riyue-ms.1] - 2026-11-09
 
 上游基线：`v2.20.1`，提交 `19555361324e8df0f4723cc564246a43100490a7`。
@@ -38,4 +47,5 @@
 
 验证范围、环境修复后的复测及未覆盖边界见 [LOCAL_CHANGES.md](LOCAL_CHANGES.md)。
 
+[2.20.1-riyue-ms.2]: https://github.com/mashuai96/sub2api/tree/v2.20.1-riyue-ms.2
 [2.20.1-riyue-ms.1]: https://github.com/mashuai96/sub2api/tree/v2.20.1-riyue-ms.1

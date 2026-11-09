@@ -179,6 +179,7 @@
 
       <template v-if="activeTab === 'usage'">
         <UsageTable
+          enable-timing-details
           :data="usageLogs"
           :loading="loading"
           :columns="visibleColumns"

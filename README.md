@@ -18,7 +18,7 @@
 | --- | --- |
 | 本仓库 | `mashuai96/sub2api` |
 | 默认分支 | `main` |
-| 当前定制版本 | `2.20.1-riyue-ms.1` |
+| 当前定制版本 | `2.20.1-riyue-ms.2` |
 | 上游基线 | [`ranxi2001/sub2api v2.20.1`](https://github.com/ranxi2001/sub2api/releases/tag/v2.20.1) |
 | 基线提交 | `19555361324e8df0f4723cc564246a43100490a7` |
 | 计时兼容参考 | `v2.19.4`，`7c57360065e6b181fbc0d5eb52cd037e7f437f1e` |
@@ -36,7 +36,7 @@
 - 保留筛选、导出、分页、列显示偏好及用户可见性限制。
 - 首字颜色阈值仍为 **10 / 30 / 60 秒**，总耗时仍为 **60 / 180 / 300 秒**。
 
-TPS、缓存率公式和计入排队时间的展示口径不变。管理员详细计时记录继续保留，普通用户不会因此获得管理员诊断权限。
+列表首字和总耗时分别取记录中的 `first_token_ms` 和 `duration_ms`，不以含转发前等待或 SSE 首事件字段替换。TPS、缓存率公式不变。耗时弹框恢复 2.19.4 的布局，普通用户只查看自己记录已有的摘要，不获得管理员诊断权限。
 
 ### v2.19.4 首字口径
 
@@ -71,10 +71,10 @@ git clone https://github.com/mashuai96/sub2api.git
 cd sub2api
 
 docker build -f Dockerfile.sub-ms \
-  --build-arg VERSION=2.20.1-riyue-ms.1 \
+  --build-arg VERSION=2.20.1-riyue-ms.2 \
   --build-arg COMMIT="$(git rev-parse HEAD)" \
   --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  -t sub2api:2.20.1-riyue-ms.1 .
+  -t sub2api:2.20.1-riyue-ms.2 .
 ```
 
 `Dockerfile.sub-ms` 从当前源码构建前端和后端，运行时基于固定 digest 的上游镜像，保留其资源、入口脚本及非 root 用户行为。

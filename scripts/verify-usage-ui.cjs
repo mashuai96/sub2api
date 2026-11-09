@@ -17,7 +17,7 @@ const baseRow = {
   created_at: '2026-11-09T01:00:00Z', user_id: 99, api_key_id: 99,
   account_id: 99, group_id: 99, platform: 'openai',
   input_tokens: 104, output_tokens: 235, cache_read_tokens: 896, cache_creation_tokens: 0,
-  first_token_ms: 12260, duration_ms: 12700, stream: true,
+  first_token_ms: 876, duration_ms: 8180, stream: true,
   request_type: 'stream', billing_type: 0, actual_cost: 0.01, total_cost: 0.01,
   account_cost: 0.005, input_cost: 0.005, output_cost: 0.005, rate_multiplier: 1,
   service_tier: 'priority',
@@ -25,7 +25,9 @@ const baseRow = {
   api_key: { id: 99, name: 'Synthetic key' },
   account: { id: 99, name: 'Synthetic account' },
   group: { id: 99, name: 'Synthetic group' },
-  content_timing: { sse_event_first_ms: 897, semantic_first_ms: 13000 },
+  content_timing: { sse_event_first_ms: 2940, semantic_first_ms: 10060 },
+  queue_wait_ms: 2060,
+  queue_timing: { status: 'measured', server_first_token_ms: 2940, server_duration_ms: 10240 },
 };
 const rows = [baseRow,
   { ...baseRow, id: 2, request_id: 'synthetic-usage-2', first_token_ms: 4270, duration_ms: 13630 },
@@ -61,21 +63,24 @@ const server = http.createServer((request, response) => {
           status: 'active', balance: 100, concurrency: 10, created_at: '2026-11-09T00:00:00Z',
           updated_at: '2026-11-09T00:00:00Z', totp_enabled: false, allowed_groups: [] };
         const context = await browser.newContext({ viewport: { width, height: 1000 }, locale: 'zh-CN' });
-        const errors = [], remote = [];
+        const errors = [], remote = [], apiPaths = [];
         await context.addInitScript(({ user }) => {
           localStorage.setItem('auth_token', 'synthetic-browser-fixture');
           localStorage.setItem('auth_user', JSON.stringify(user));
           localStorage.setItem('sub2api_locale', 'zh');
+          localStorage.setItem(`onboarding_tour_${user.id}_${user.role}_v4_interactive`, 'true');
         }, { user });
         await context.route('**/*', async route => {
           const url = new URL(route.request().url());
           if (url.origin !== base) { remote.push(url.origin); return route.abort(); }
           if (!url.pathname.startsWith('/api/')) return route.continue();
+          apiPaths.push(url.pathname);
           let data = {};
           if (url.pathname.endsWith('/auth/me')) data = { ...user, run_mode: 'standard' };
           else if (url.pathname.includes('public')) data = { site_name: 'UI verification', registration_enabled: false,
             allow_user_view_error_requests: false, custom_menu_items: [], feature_flags: { subscription: false },
             usage_show_cache_rate: true, usage_show_cache_rate_to_users: true };
+          else if (url.pathname.endsWith('/timing')) data = { traces: [], retention_days: 30 };
           else if (/\/usage$/.test(url.pathname)) data = { items: rows, total: rows.length, page: 1, page_size: 20, pages: 1 };
           else if (url.pathname.includes('snapshot')) data = { trend: [], models: [], groups: [], stats };
           else if (url.pathname.endsWith('/stats')) data = stats;
@@ -91,19 +96,19 @@ const server = http.createServer((request, response) => {
         const cells = page.getByTestId('usage-latency');
         await cells.first().waitFor();
         assert.equal(await cells.count(), rows.length);
-        assert.match(await cells.first().innerText(), /12\.26s/);
-        assert.match(await cells.first().innerText(), /12\.70s/);
-        assert.doesNotMatch(await cells.first().innerText(), /897|TPS|%/);
+        assert.match(await cells.first().innerText(), /876ms/);
+        assert.match(await cells.first().innerText(), /8\.18s/);
+        assert.doesNotMatch(await cells.first().innerText(), /2\.94s|10\.24s|TPS|%/);
         const tps = page.getByTestId('latency-tps').first();
         const cache = page.getByTestId('latency-cache-rate').first();
-        assert.equal(await tps.innerText(), '18.5 t/s');
+        assert.equal(await tps.innerText(), '28.7 t/s');
         assert.equal(await cache.innerText(), '89.6%');
         assert.match(await tps.getAttribute('class'), /text-violet-500/);
         assert.match(await cache.getAttribute('class'), /text-blue-500/);
         assert.equal(await page.getByTestId('latency-tps').last().innerText(), '-');
         assert.equal(await page.getByTestId('latency-cache-rate').last().innerText(), '-');
         const classes = await cells.evaluateAll(nodes => nodes.map(n => [...n.querySelectorAll('.tabular-nums')].map(e => e.className)));
-        assert.match(classes[0][0], /text-amber-600/);
+        assert.match(classes[0][0], /text-emerald-600/);
         assert.match(classes[0][1], /text-emerald-600/);
         assert.match(classes[2][0], /text-orange-600/);
         assert.match(classes[2][1], /text-amber-600/);
@@ -119,7 +124,23 @@ const server = http.createServer((request, response) => {
         assert(fit, 'latency text must fit its grid');
         assert.deepEqual(errors, []);
         await page.screenshot({ path: path.join(output, `${role}-${width}.png`) });
-        results.push({ role, width, textFits: fit, columnsSeparate: true, pageErrors: errors, blockedExternalOrigins: remote });
+        await cells.first().click();
+        const dialog = page.locator('.modal-body');
+        await dialog.waitFor();
+        await page.waitForTimeout(400);
+        assert.match(await dialog.innerText(), /876ms/);
+        assert.match(await dialog.innerText(), /8\.18s/);
+        assert.match(await dialog.innerText(), /2\.94s/);
+        assert.equal(await page.getByTestId('final-content-timing').count(), 0);
+        assert.equal(await dialog.locator('.rounded-xl.border.p-4').count(), 9);
+        if (role === 'user') assert(!apiPaths.some(p => /\/admin\/|\/timing$/.test(p)), 'User modal must not read admin or observer traces');
+        else assert(apiPaths.includes('/api/v1/admin/usage/1/timing'));
+        const modalFit = await dialog.evaluate(e => e.scrollWidth <= e.clientWidth + 1);
+        assert(modalFit, 'timing dialog must not overflow');
+        assert.deepEqual(errors, []);
+        await page.screenshot({ path: path.join(output, `${role}-${width}-timing.png`) });
+        await page.keyboard.press('Escape');
+        results.push({ legacyFirstMs: 876, modalFits: modalFit, role, width, textFits: fit, columnsSeparate: true, pageErrors: errors, blockedExternalOrigins: remote });
         await context.close();
       }
     }

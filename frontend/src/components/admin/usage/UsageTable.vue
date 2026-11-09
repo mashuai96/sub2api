@@ -1,9 +1,5 @@
 <template>
   <div :class="flat ? '' : 'card overflow-hidden'">
-    <div v-if="enableTimingDetails && noticeUserId != null && !observerMode" class="flex items-center gap-2 border-b border-gray-200 px-4 py-2 text-xs text-gray-500 dark:border-dark-700 dark:text-gray-400">
-      <span>{{ t('requestTiming.contentTitle') }}</span>
-      <NewFeatureBadge :notice-id="NEW_FEATURE_NOTICES.streamFirstEventTiming" :user-id="noticeUserId" />
-    </div>
     <div
       v-if="showIpGeoToolbar"
       class="flex items-center justify-end gap-2 border-b border-gray-200 px-4 py-2 dark:border-dark-700"
@@ -250,13 +246,13 @@
               aria-hidden="true"
             ></span>
             <span class="col-start-2 row-start-1 text-gray-400 dark:text-gray-500">{{ t('usage.latencyFirstTokenShort') }}</span>
-            <span v-if="firstTokenQueueInclusive(row) != null" class="col-start-3 row-start-1 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[firstTokenSeverity(firstTokenQueueInclusive(row) ?? 0)]" :title="row.queue_timing?.status === 'measured' ? t('usage.latencyFirstTokenHint') : enableTimingDetails ? t('requestTiming.legacyFirst') : undefined">
-              {{ formatDuration(firstTokenQueueInclusive(row)) }}
+            <span v-if="row.first_token_ms != null" class="col-start-3 row-start-1 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[firstTokenSeverity(row.first_token_ms)]" :title="t('usage.latencyFirstTokenHint')">
+              {{ formatDuration(row.first_token_ms) }}
             </span>
             <span v-else class="col-start-3 row-start-1 text-gray-400 dark:text-gray-500" :title="enableTimingDetails ? t('requestTiming.legacyFirst') : undefined">-</span>
             <span class="col-start-2 row-start-2 text-gray-400 dark:text-gray-500">{{ t('usage.latencyDurationShort') }}</span>
-            <span class="col-start-3 row-start-2 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[durationSeverity(durationQueueInclusive(row) ?? 0)]" :title="row.queue_timing?.status === 'measured' ? t('usage.latencyDurationHint') : enableTimingDetails ? t('requestTiming.legacyTotal') : undefined">
-              {{ formatDuration(durationQueueInclusive(row)) }}
+            <span class="col-start-3 row-start-2 font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[durationSeverity(row.duration_ms ?? 0)]" :title="t('usage.latencyDurationHint')">
+              {{ formatDuration(row.duration_ms) }}
             </span>
           </component>
         </template>
@@ -542,7 +538,7 @@
         </div>
       </div>
   </UsageDetailPopover>
-  <UsageTimingDialog :record="timingRecord" :notice-user-id="noticeUserId" @close="timingRecord = null" />
+  <UsageTimingDialog :record="timingRecord" :summary-only="cacheRateAudience === 'user' && !observerMode" @close="timingRecord = null" />
 </template>
 
 <script setup lang="ts">
@@ -551,8 +547,6 @@ import { useWindowSize } from '@vueuse/core'
 import UsageDetailPopover from './UsageDetailPopover.vue'
 import UsageApiKeyName from './UsageApiKeyName.vue'
 import UsageTimingDialog from './UsageTimingDialog.vue'
-import NewFeatureBadge from '@/components/common/NewFeatureBadge.vue'
-import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
 import { observerUsageContext } from './observerUsageContext'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -789,16 +783,10 @@ const cacheRateTitle = (row: AdminUsageLog): string | undefined => {
   })
 }
 
-// Persisted boundary observations account for protocol-specific legacy overlap.
-// Historical rows retain their legacy values and are not claimed as measured.
-const firstTokenQueueInclusive = (row: AdminUsageLog): number | null =>
-  row.queue_timing?.status === 'measured' ? row.queue_timing.server_first_token_ms : row.first_token_ms
-const durationQueueInclusive = (row: AdminUsageLog): number | null =>
-  row.queue_timing?.status === 'measured' ? row.queue_timing.server_duration_ms : row.duration_ms
-
+// The usage column follows the persisted legacy timer, not queue/SSE observations.
 const latencySeverities = (row: AdminUsageLog) => {
-  const duration = durationSeverity(durationQueueInclusive(row) ?? 0)
-  const firstToken = firstTokenQueueInclusive(row)
+  const duration = durationSeverity(row.duration_ms ?? 0)
+  const firstToken = row.first_token_ms
   return {
     first: firstToken != null ? firstTokenSeverity(firstToken) : duration,
     duration,
