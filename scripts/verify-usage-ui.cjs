@@ -68,7 +68,7 @@ const server = http.createServer((request, response) => {
           localStorage.setItem('auth_token', 'synthetic-browser-fixture');
           localStorage.setItem('auth_user', JSON.stringify(user));
           localStorage.setItem('sub2api_locale', 'zh');
-          localStorage.setItem(`onboarding_tour_${user.id}_${user.role}_v4_interactive`, 'true');
+          localStorage.setItem(`${user.role}_guide_${user.id}_${user.role}_v4_interactive`, 'true');
         }, { user });
         await context.route('**/*', async route => {
           const url = new URL(route.request().url());
@@ -128,6 +128,7 @@ const server = http.createServer((request, response) => {
         const dialog = page.locator('.modal-body');
         await dialog.waitFor();
         await page.waitForTimeout(400);
+        assert.equal(await page.locator('.driver-popover').count(), 0, 'Onboarding must not cover the timing dialog');
         assert.match(await dialog.innerText(), /876ms/);
         assert.match(await dialog.innerText(), /8\.18s/);
         assert.match(await dialog.innerText(), /2\.94s/);
