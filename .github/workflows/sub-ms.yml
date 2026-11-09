@@ -1,0 +1,88 @@
+name: sub_ms Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - docs/legal/**
+      - scripts/verify-usage-ui.cjs
+      - Dockerfile.sub-ms
+      - .github/workflows/sub-ms.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - docs/legal/**
+      - scripts/verify-usage-ui.cjs
+      - Dockerfile.sub-ms
+      - .github/workflows/sub-ms.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sub-ms-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Usage timer and billing contracts
+        working-directory: backend
+        run: >-
+          go test -count=1 -timeout=10m ./internal/service
+          -run 'Test(SubMS|ResolveBillingServiceTier|ApplyServiceTierBillingResolution|OpenAIResponsesTTFT|OpenAIGatewayServiceRecordUsage_)'
+      - name: Shared protocol and timing helpers
+        working-directory: backend
+        run: go test -count=1 ./internal/pkg/openai ./internal/pkg/requesttiming
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Locked dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Usage interface regressions
+        working-directory: frontend
+        run: >-
+          pnpm exec vitest run src/components/admin/usage/__tests__
+          src/views/admin/__tests__/UsageView.spec.ts
+      - name: Production frontend build
+        working-directory: frontend
+        run: pnpm build
+      - name: Isolated browser dependencies
+        run: |
+          npm install --prefix .build/usage-ui-deps --no-save --package-lock=false playwright@1.62.1
+          node .build/usage-ui-deps/node_modules/playwright/cli.js install --with-deps chromium
+      - name: User and admin layouts at four viewports
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/.build/usage-ui-deps/node_modules
+        run: node scripts/verify-usage-ui.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sub-ms-usage-ui
+          path: .build/usage-ui/
+          if-no-files-found: ignore
+          retention-days: 7

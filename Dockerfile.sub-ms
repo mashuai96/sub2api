@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1.7
+ARG NODE_IMAGE=node:24-alpine
+ARG GOLANG_IMAGE=golang:1.27.3-alpine
+ARG BASE_IMAGE=ghcr.io/ranxi2001/sub2api:2.20.1@sha256:5aac942e1ae62892167a15a04dbe291d8ec38afc004b719ae0baaffa4dbb76c5
+
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS frontend
+WORKDIR /src/frontend
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN --mount=type=cache,id=sub-ms-pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+COPY frontend/ ./
+COPY docs/legal/ /src/docs/legal/
+RUN pnpm build
+
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS backend
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG VERSION=2.20.1-riyue-ms.1
+ARG COMMIT=unknown
+ARG DATE
+WORKDIR /src/backend
+RUN apk add --no-cache git ca-certificates tzdata
+COPY backend/go.mod backend/go.sum ./
+COPY backend/third_party/ ./third_party/
+RUN --mount=type=cache,id=sub-ms-gomod,target=/go/pkg/mod go mod download
+COPY backend/ ./
+COPY --from=frontend /src/backend/internal/web/dist ./internal/web/dist
+RUN --mount=type=cache,id=sub-ms-gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=sub-ms-gobuild,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -tags embed -trimpath \
+    -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)} -X main.BuildType=release" \
+    -o /out/sub2api ./cmd/server
+
+FROM ${BASE_IMAGE}
+ARG VERSION=2.20.1-riyue-ms.1
+ARG COMMIT=unknown
+ARG DATE
+LABEL org.opencontainers.image.source="https://github.com/mashuai96/sub2api"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${COMMIT}"
+LABEL org.opencontainers.image.created="${DATE}"
+COPY --from=backend --chown=1000:1000 /out/sub2api /app/sub2api

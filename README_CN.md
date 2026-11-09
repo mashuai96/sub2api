@@ -2,4 +2,4 @@
 
 中文已作为本仓库的默认文档，请阅读 [README.md](README.md)。
 
-[部署方式](README.md#部署方式) · [使用文档](https://tosky.io/docs/) · [版本下载](https://github.com/ranxi2001/sub2api/releases)
+[构建与运行](README.md#构建与运行) · [行为差异](LOCAL_CHANGES.md) · [变更日志](CHANGELOG.md)

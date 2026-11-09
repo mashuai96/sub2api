@@ -1,3 +1,8 @@
+> **Upstream reference.** The content below describes `ranxi2001/sub2api`.
+> Its install commands and images do not include this fork's changes.
+> See [sub_ms README](README.md), [behavior](LOCAL_CHANGES.md) and
+> [build instructions](docs/SUB_MS_BUILD.md) for `mashuai96/sub2api`.
+
 <div align="center">
 
 <img src="assets/logo.svg" alt="Sub2API Logo" width="128" />

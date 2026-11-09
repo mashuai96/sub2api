@@ -234,3 +234,11 @@ issues/
 tools/local-worker/
 
 !docs/key-risk-patrol.md
+
+# Local verification and reproducible sub_ms release artifacts.
+/.build/
+!LOCAL_CHANGES.md
+!/scripts/
+/scripts/*
+!scripts/verify-usage-ui.cjs
+!docs/SUB_MS_BUILD.md

@@ -1,3 +1,8 @@
+> **Upstream reference.** This file describes `ranxi2001/sub2api`, including its
+> branches, install scripts and images. It does not install this fork.
+> For `mashuai96/sub2api` (`sub_ms`), see [README](README.md),
+> [behavior and verification](LOCAL_CHANGES.md) and [build instructions](docs/SUB_MS_BUILD.md).
+
 <div align="center">
 
 <img src="assets/logo.svg" alt="Sub2API Logo" width="128" />

@@ -1,12 +1,12 @@
 # 贡献指南
 
-本指南适用于 [ranxi2001/sub2api](https://github.com/ranxi2001/sub2api)。欢迎提交可复现的 Bug、功能建议、文档修正、测试和代码改进。中文或英文均可，保留错误消息、字段名和命令的原文。
+本指南适用于 [mashuai96/sub2api](https://github.com/mashuai96/sub2api) 的 `sub_ms` 分支版本，沿用并适配上游贡献规范。欢迎提交可复现的 Bug、功能建议、文档修正、测试和代码改进。中文或英文均可，保留错误消息、字段名和命令的原文。
 
-本 fork 以 `production` 为默认开发和 PR 目标分支，按需引入 [Wei-Shaw/sub2api](https://github.com/Wei-Shaw/sub2api) 的更新。提交前核实仓库与 base 分支，避免把 PR 发到上游 `main`。运维 CLI、监控及生产部署脚本属于 [sub2api-operate](https://github.com/ranxi2001/sub2api-operate)，应用源码改动提交到本仓库。
+本 fork 以 `main` 为默认开发和 PR 目标分支，按需引入 [ranxi2001/sub2api](https://github.com/ranxi2001/sub2api) 的更新。提交前核实仓库与 base 分支，避免误向上游提交本分支定制。构建与定向测试见 [sub_ms 构建说明](docs/SUB_MS_BUILD.md)；生产运维脚本、凭据与运行数据不属于本仓库交付内容。
 
 ## Agent 使用建议与披露
 
-**强烈建议使用 Astra 或 Opus 5.5 编写 PR。Fable 系列及其他模型也可以提交。** 这是使用建议，不是模型准入限制。
+可以使用编程助手，但不限定工具或模型。贡献者对代码、证据和文档的准确性负责。
 
 所有 Issue 和 PR 都必须注明 **Agent 名称、模型名称和推理强度**，无论使用推荐模型、其他模型，还是完全人工编写，方便审核者判断内容的可信度和需要重点核查的部分。仅用 Agent 分析问题、编写测试、撰写或润色正文，也需要披露。
 
@@ -20,7 +20,7 @@
 
 ## 选择合适的入口
 
-从 [Issue 选择页](https://github.com/ranxi2001/sub2api/issues/new/choose) 选择表单：
+从 [Issue 选择页](https://github.com/mashuai96/sub2api/issues/new/choose) 选择表单：
 
 | 类型 | 适用情况 | 重点提供 |
 | --- | --- | --- |
@@ -144,7 +144,7 @@ printf '证据保存在 %s；人工脱敏后只分享必要片段。\n' "$repro_
 
 ### 安全漏洞私密报告
 
-涉及认证绕过、越权、密钥泄露或可利用漏洞时，不要在公开 Issue/PR 放利用步骤或凭据。如仓库 Security 页面提供 **Report a vulnerability**，使用该私密入口；如果未启用，通过 [README 的社区联系方式](README.md#社区交流群) 联系维护者约定私密渠道，初次联络只说明需要报告安全问题，不在群内公开细节。普通功能 Bug 使用 Issue 表单。
+涉及认证绕过、越权、密钥泄露或可利用漏洞时，不要在公开 Issue/PR 放利用步骤或凭据。按 [SECURITY.md](SECURITY.md) 约定私密报告渠道；未建立私密渠道前，只请求联系方式，不提供漏洞细节。普通功能 Bug 使用 Issue 表单。
 
 ## 准备代码贡献
 
@@ -156,9 +156,9 @@ Fork 本仓库后，下面示例中的 `origin` 是自己的 fork，`project` �
 # 将 YOUR_GITHUB_LOGIN 替换为自己的 GitHub 用户名。
 git clone https://github.com/YOUR_GITHUB_LOGIN/sub2api.git
 cd sub2api
-git remote add project https://github.com/ranxi2001/sub2api.git
-git fetch project production
-git switch -c fix/describe-the-change project/production
+git remote add project https://github.com/mashuai96/sub2api.git
+git fetch project main
+git switch -c fix/describe-the-change project/main
 ```
 
 每个 PR 聚焦一个问题。说明请求路径、账号类型、配置默认值、兼容性和用户可见变化。协议、调度、计费、权限、重试和数据库改动需要对应的边界验证；不要顺手调整无关行为或格式。
@@ -251,7 +251,7 @@ UI 改动补充可复核的前后截图、交互步骤与相关语言覆盖；�
 
 1. 标题概括用户可见的改动，可使用 `fix:`、`feat:`、`docs:` 或 `test:`。按 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 填写问题、行为变化、复现/验收、实际验证、兼容性和文档变化；小型文档 PR 可简化不适用的小节。
 2. 完整解决某个 Issue 才写 `Fixes #编号`；部分修复、调查或补充文档用 `Refs #编号`。汇总 Issue 中的其他问题仍未解决时，不应自动关闭整个 Issue。
-3. 自查后只提交相关文件，推送自己的功能分支，在 GitHub 选择本项目 `production` 作为 base。不要直接向生产分支推送未经审查的改动。
+3. 自查后只提交相关文件，推送自己的功能分支，在 GitHub 选择本项目 `main` 作为 base。提交信息按 `fix(范围): 行为修复`、`feat(范围): 功能`、`test`、`docs` 或 `build` 分类，正文说明原因、兼容边界和实际验证。不要直接向主分支推送未经审查的改动。
 4. 根据审查意见在原 PR head 追加修复提交，保留原作者提交及上下文。不要先合并再补修复来绕开分支权限；没有写权限时保留补丁并说明具体阻碍。
 5. 追加提交或解决冲突后重新运行受影响检查，CI 结果应对应当前 head。将失败、跳过和未运行项写清楚；没有真实验证过的结论不要标记为通过。
 6. 涉及配置、API 或迁移时说明默认值、升级步骤、旧数据兼容和回滚限制。数据库迁移不能仅靠回退二进制撤销。

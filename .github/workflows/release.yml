@@ -39,6 +39,8 @@ env:
 
 jobs:
   prepare:
+    # Inherited upstream publisher. This fork publishes source independently.
+    if: ${{ github.repository == 'ranxi2001/sub2api' }}
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.plan.outputs.sha }}
