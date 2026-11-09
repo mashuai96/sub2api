@@ -46,13 +46,15 @@ func TestApplyServiceTierBillingResolutionOnlyRewritesDowngrades(t *testing.T) {
 		require.False(t, codexOAuthResponseTierIsNonAuthoritative("flex"))
 	})
 
-	t.Run("openai downgrade rewrites tier", func(t *testing.T) {
+	t.Run("openai API key Fast retains final outbound tier on default echo", func(t *testing.T) {
 		requested := "priority"
 		result := &OpenAIForwardResult{ServiceTier: &requested, UpstreamResponseServiceTier: "default"}
 		resolution := ApplyOpenAIServiceTierBillingResolution(&Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}, result)
-		require.True(t, resolution.Downgraded)
+		require.False(t, resolution.Downgraded)
+		require.True(t, resolution.RequestBilling)
+		require.Equal(t, "default", resolution.Observed)
 		require.NotNil(t, result.ServiceTier)
-		require.Equal(t, "default", *result.ServiceTier)
+		require.Equal(t, "priority", *result.ServiceTier)
 	})
 
 	t.Run("openai honoured tier keeps pointer", func(t *testing.T) {
