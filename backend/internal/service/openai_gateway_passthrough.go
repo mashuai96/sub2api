@@ -1437,11 +1437,13 @@ func (s *OpenAIGatewayService) openAITTFTMode(ctx context.Context) string {
 	return normalizeOpenAITTFTMode(mode)
 }
 
-func openAIStreamDataStartsTTFT(data, eventType string, _ bool, mode string) bool {
+// Usage keeps the v2.19.4 timer. Typed semantic/first-event diagnostics remain
+// separate and must not replace the persisted first_token_ms measurement.
+func openAIStreamDataStartsTTFT(data, eventType string, forceOutput bool, mode string) bool {
 	if mode == OpenAITTFTModeVisible {
 		return openAIStreamDataStartsVisibleOutput(data, eventType)
 	}
-	return openAIStreamDataStartsSemanticTTFT(data, eventType)
+	return forceOutput || openAIStreamDataStartsLegacySemanticTTFT(data, eventType)
 }
 
 // openAIStreamFailedEventErrorCode 提取流内 failed 事件的错误码（小写），
@@ -2505,10 +2507,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthroughWithImage(
 			deliveryObservation.data(metricPayload, metricType)
 			pluginMetadataEvent.data(metricPayload, metricType)
 			startsSemanticOutput := openAIStreamDataStartsSemanticTTFT(string(metricPayload), metricType)
-			startsTTFTOutput := startsSemanticOutput
-			if ttftMode == OpenAITTFTModeVisible {
-				startsTTFTOutput = openAIStreamDataStartsVisibleOutput(trimmedData, eventType)
-			}
+			startsTTFTOutput := openAIStreamDataStartsTTFT(trimmedData, eventType, forceFlushFailedEvent, ttftMode)
 			requesttiming.Content(ctx, metricPayload, metricType)
 			requesttiming.Output(ctx, startsSemanticOutput, openAIStreamDataStartsVisibleOutput(trimmedData, eventType), timingTerminal(eventType))
 			if firstTokenMs == nil && startsTTFTOutput {

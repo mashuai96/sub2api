@@ -827,9 +827,6 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			deliveryObservation.data(metricPayload, metricType)
 			pluginMetadataEvent.data(metricPayload, metricType)
 			startsSemanticOutput := openAIStreamDataStartsSemanticTTFT(string(metricPayload), metricType)
-			if ttftMode != OpenAITTFTModeVisible {
-				startsTTFTOutput = startsSemanticOutput
-			}
 			startsLegacyTTFTOutput := startsVisibleOutput
 			if ttftMode != OpenAITTFTModeVisible {
 				startsLegacyTTFTOutput = forceFlushFailedEvent || openAIStreamDataStartsLegacySemanticTTFT(data, eventType)

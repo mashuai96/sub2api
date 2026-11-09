@@ -119,7 +119,9 @@ func TestOpenAIResponsesTTFTSharedSemanticForwarders(t *testing.T) {
 					}
 				}
 				require.NoError(t, err)
-				if tc.want {
+				if path == "native" || path == "native_guarded" || path == "passthrough" {
+					require.NotNil(t, first, "v2.19.4 usage timer also observes a terminal-only response")
+				} else if tc.want {
 					require.NotNil(t, first, "typed reasoning/content must establish semantic TTFT")
 				} else {
 					require.Nil(t, first, "metadata, untyped/empty payload and terminal must not establish semantic TTFT")
@@ -136,9 +138,10 @@ func TestOpenAIResponsesTTFTSharedSemanticForwarders(t *testing.T) {
 	}
 }
 
-func TestOpenAIResponsesTTFTForceOutputIsDeliveryOnly(t *testing.T) {
+func TestOpenAIResponsesTTFTKeepsV2194ForceOutputContract(t *testing.T) {
 	for _, event := range []string{`{"type":"response.failed","response":{"error":{"code":"invalid_request_error"}}}`, `{"type":"error","error":{"code":"invalid_request_error"}}`, `{"type":"response.output_text.delta","delta":""}`, `not-json`} {
-		require.False(t, openAIStreamDataStartsTTFT(event, "", true, OpenAITTFTModeSemantic), "forced delivery cannot invent semantic output: %s", event)
+		require.True(t, openAIStreamDataStartsTTFT(event, "", true, OpenAITTFTModeSemantic), "legacy usage timer observes forced delivery: %s", event)
+		require.False(t, openAIStreamDataStartsSemanticTTFT(event, ""), "typed semantic diagnostics stay independent: %s", event)
 	}
 }
 
@@ -268,7 +271,7 @@ func TestOpenAIResponsesTTFTForcedFailureDelivery(t *testing.T) {
 				require.Error(t, err)
 				var failover *UpstreamFailoverError
 				require.False(t, errors.As(err, &failover), "non-retryable error must be delivered without failover")
-				require.Nil(t, first, "forced failed/error delivery must not establish semantic TTFT")
+				require.NotNil(t, first, "v2.19.4 usage timer observes forced failure delivery without claiming success")
 				require.Equal(t, 9, usage.InputTokens)
 				require.Equal(t, 2, usage.OutputTokens)
 				require.Equal(t, 1, strings.Count(recorder.Body.String(), `"type":"response.failed"`))
